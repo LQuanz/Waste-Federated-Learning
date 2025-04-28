@@ -5,11 +5,6 @@ import tensorflow as tf
 import time
 from model import build_model
 
-# Load data
-data_dir = "#change to path of your dataset file" 
-if not os.path.exists(data_dir):
-    raise FileNotFoundError(f"Dataset directory {data_dir} not found.")
-
 # Log
 log_path = "#change to path that where you want yout log file to be saved" 
 log_file = os.path.join(log_path, "Log_Client1.csv")
@@ -19,7 +14,11 @@ if not os.path.exists(log_path):
 batch_size = 16
 img_size = (160, 160)
 
-#Load Data
+# Load data
+data_dir = "#change to path of your dataset file" 
+if not os.path.exists(data_dir):
+    raise FileNotFoundError(f"Dataset directory {data_dir} not found.")
+
 def load_data():
     datagen = tf.keras.preprocessing.image.ImageDataGenerator(validation_split=0.2)
     train_data = datagen.flow_from_directory(
