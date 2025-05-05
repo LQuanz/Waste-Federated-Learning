@@ -4,22 +4,28 @@ import flwr as fl
 import tensorflow as tf
 import time
 from model import build_model
+from log import (
+    log_qos_start_training, 
+    log_qos_end_training, 
+    log_qos_communication_latency,
+    log_qos_packet_loss,
+    estimate_energy_consumption
+)
 
-
+# Load data
+data_dir = "#path-to-your-dataset"
+if not os.path.exists(data_dir):
+    raise FileNotFoundError(f"Dataset directory {data_dir} not found.")
 
 # Log
-log_path = "#change to path that where you want yout log file to be saved" 
-log_file = os.path.join(log_path, "Log_Client1.csv")
+log_path = "#path-to-your-log-file" 
+log_file = os.path.join(log_path, "file_name.csv")
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 
-batch_size = 16
+batch_size = 8
 img_size = (160, 160)
 
-# Load data
-data_dir = "#change to path of your dataset file" 
-if not os.path.exists(data_dir):
-    raise FileNotFoundError(f"Dataset directory {data_dir} not found.")
 
 def load_data():
     datagen = tf.keras.preprocessing.image.ImageDataGenerator(validation_split=0.2)
@@ -56,17 +62,24 @@ class FLClient(fl.client.NumPyClient):
     
     def fit(self, parameters, config):
         self.model.set_weights(parameters)
-        start_time = time.time()
+
+        start_time, cpu_before, memory_before = log_qos_start_training()
         
         history = self.model.fit(
             self.train_data,
-            epochs=10,
+            epochs=2,
             validation_data=self.val_data,
             verbose=0
         )
         
         end_time = time.time()
         duration = end_time - start_time
+        duration, avg_cpu, avg_memory = log_qos_end_training(start_time, cpu_before, memory_before)
+
+        comm_latency = log_qos_communication_latency()
+        packet_loss = log_qos_packet_loss()
+
+        energy_consumption = estimate_energy_consumption(duration, avg_cpu)
 
         self.current_round += 1
         train_loss = history.history["loss"][0]
@@ -74,10 +87,24 @@ class FLClient(fl.client.NumPyClient):
         val_loss = history.history["val_loss"][0]
         val_acc = history.history["val_accuracy"][0]
 
-        # Save log's file
+        # Simpan ke file log
         with open(log_file, mode='a', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([self.current_round, train_loss, train_acc, val_loss, val_acc, round(duration, 2)])
+            with open(log_file, mode='a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    self.current_round,
+                    train_loss,
+                    train_acc,
+                    val_loss,
+                    val_acc,
+                    duration,
+                    avg_cpu,
+                    avg_memory,
+                    comm_latency,
+                    packet_loss,
+                    energy_consumption
+                ])
+
         return self.model.get_weights(), len(self.train_data), {}
     
     def evaluate(self, parameters, config):
@@ -86,5 +113,4 @@ class FLClient(fl.client.NumPyClient):
         return loss, len(self.val_data), {"accuracy": acc}
 
 if __name__ == "__main__":
-    fl.client.start_numpy_client(server_address="xxx.xxx.xxx.xxx:xxxx", client=FLClient()) #Fill x with your server IP Addresses and port
-
+    fl.client.start_numpy_client(server_address="your.server.IP.Address:Port", client=FLClient()) 
