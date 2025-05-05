@@ -87,7 +87,6 @@ class FLClient(fl.client.NumPyClient):
         val_loss = history.history["val_loss"][0]
         val_acc = history.history["val_accuracy"][0]
 
-        # Simpan ke file log
         with open(log_file, mode='a', newline='') as f:
             with open(log_file, mode='a', newline='') as f:
                 writer = csv.writer(f)
